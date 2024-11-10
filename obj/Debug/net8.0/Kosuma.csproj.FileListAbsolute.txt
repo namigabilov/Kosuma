@@ -139,3 +139,4 @@
 /home/namig/Desktop/dotnet/Kosuma/Kosuma/obj/Debug/net8.0/Kosuma.csproj.AssemblyReference.cache
 /home/namig/Desktop/dotnet/Kosuma/Kosuma/obj/Debug/net8.0/Kosuma.csproj.CopyComplete
 /home/namig/Desktop/dotnet/Kosuma/Kosuma/bin/Debug/net8.0/names.json
+/home/namig/Desktop/dotnet/Kosuma/Kosuma/obj/Debug/net8.0/Kosuma.sourcelink.json
