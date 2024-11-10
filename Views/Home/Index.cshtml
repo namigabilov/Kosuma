@@ -1,0 +1,26 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+
+<div>
+    <div class="text-center">
+        <h1>Welcome To Kosuma</h1>
+    </div>
+    <p>You can start the live stream and watch it, which one should we do today?</p>
+    <div class="card-container" style="display: flex; gap: 5px; flex-wrap: wrap;">
+        @{
+            foreach (var item in ViewData["streams"] as List<LiveStream>)
+            {
+                <div class="card" style="width: 18rem; padding: 5px;">
+                    <img class="card-img-top" src="@item.Thumbnail" alt="Card image cap">
+                    <div class="card-body">
+                        <h5 class="card-title">@item.Name</h5>
+                        <p class="card-text">@item.Description</p>
+                        <a asp-controller="Home" asp-action="Stream" asp-route-id="@item.Id" class="btn btn-primary">Watch</a>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div> 
