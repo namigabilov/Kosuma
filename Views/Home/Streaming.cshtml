@@ -1,0 +1,65 @@
+@{
+    ViewData["Title"] = "Stream Time";
+}
+@model LiveStream
+
+<h2>Live </h2>
+
+<video id="cameraFeed" autoplay playsinline style="width: 100%; max-width: 600px; border: 2px solid #333;"></video>
+
+<script>
+    let seconds = 0;
+    async function startCamera() {
+        try {
+            const videoElement = document.getElementById('cameraFeed');
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            videoElement.srcObject = stream;
+
+            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
+            mediaRecorder.ondataavailable = async (event) => {
+                if (event.data.size > 0) {
+                    const uniqueFileName = `segment_${seconds}.webm`;
+                    const formData = new FormData();
+                    formData.append('file', event.data, uniqueFileName);
+                    formData.append('streamId', '@Model.Id');
+
+                    try {
+                        const response = await fetch('/Home/AddStream', {
+                            method: 'POST',
+                            body: formData,
+                        });
+
+                        if (response.ok) {
+                            console.log('Video segmenti başarıyla yüklendi.');
+                            seconds += 10;
+                        } else {
+                            console.error('Video segmentini yüklerken hata oluştu.');
+                        }
+                    } catch (error) {
+                        console.error('Video segmentini yüklerken hata oluştu:', error);
+                    }
+                }
+            };
+
+            function recordSegment() {
+                mediaRecorder.start();
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                }, 10000); // 10 saniyelik segmentler kaydediyoruz
+            }
+
+            recordSegment();
+
+            mediaRecorder.onstop = () => {
+                recordSegment(); // Her durduğunda tekrar başlat
+            };
+
+        } catch (error) {
+            console.error("Kamera erişimi reddedildi veya hata oluştu:", error);
+        }
+    }
+
+    window.onload = startCamera;
+
+</script>

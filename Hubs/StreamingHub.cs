@@ -1,4 +1,4 @@
-using System.Xml.Schema;
+using System.Text.Json.Serialization;
 using Kosuma.Db;
 using Kosuma.Models;
 using Kosuma.Services;
@@ -7,6 +7,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Kosuma.Hubs
 {
+    public struct VideoData
+        {
+            public int Index { get; }
+            public string Part { get; }
+
+
+            [JsonConstructor]
+            public VideoData(int index, string part) => (Index, Part) = (index, part);
+        }
     public class Data
     {
         public string Message { get; set; }
@@ -15,7 +24,7 @@ namespace Kosuma.Hubs
     }
 
     public class StreamingHub : Hub
-    {
+    { 
         public async Task JoinVideo(string videoId)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, videoId);

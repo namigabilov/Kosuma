@@ -1,0 +1,19 @@
+@model StreamDto
+
+<h1>Go to New Live Stream Now</h1>
+
+<form action="/Home/CreateStream" method="post">
+    <div class="form-group">
+        <label for="streamName">Title</label>
+        <input type="text" class="form-control" id="streamName" name="Name" aria-describedby="titleHelp" required>
+    </div>
+    <div class="form-group">
+        <label for="streamDescription">Description</label>
+        <input type="text" class="form-control" id="streamDescription" name="Description" required>
+    </div>
+    <div class="form-group">
+        <label for="streamThumbnail">Thumbnail (only allowed Link)</label>
+        <input type="text" class="form-control" id="streamThumbnail" name="Thumbnail" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>

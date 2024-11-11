@@ -8,6 +8,7 @@
         <h1>Welcome To Kosuma</h1>
     </div>
     <p>You can start the live stream and watch it, which one should we do today?</p>
+    <a asp-controller="Home" asp-action="CreateStream" class="btn btn-success">Go To Live !</a>
     <div class="card-container" style="display: flex; gap: 5px; flex-wrap: wrap;">
         @{
             foreach (var item in ViewData["streams"] as List<LiveStream>)

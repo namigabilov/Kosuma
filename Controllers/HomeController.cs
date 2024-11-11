@@ -1,21 +1,19 @@
 using Microsoft.AspNetCore.Mvc;
 using Kosuma.Db;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.SignalR;
-using Kosuma.Hubs;
 using Kosuma.Models;
+using Kosuma.Models.Dtos;
+using Kosuma.Services;
 
 namespace Kosuma.Controllers;
 
 public class HomeController : Controller
 {
-    private readonly ILogger<HomeController> _logger;
-    private readonly IHubContext<StreamingHub> _hub;
+    private readonly IWebHostEnvironment _env;
 
-    public HomeController(ILogger<HomeController> logger, IHubContext<StreamingHub> hub)
+    public HomeController(IWebHostEnvironment env)
     {
-        _logger = logger;
-        _hub = hub;
+        _env = env;
     }
 
     public async Task<IActionResult> Index()
@@ -29,8 +27,34 @@ public class HomeController : Controller
             return View();
         }
     }
+    [HttpGet]
+    public IActionResult CreateStream()
+    {
+        return View();
+    }
 
-    public async Task<IActionResult> Stream(Guid id)
+    [HttpPost]
+    public async Task<IActionResult> CreateStream([FromForm] StreamDto dto)
+    {
+        using (var context = new AppDbContext())
+        {
+            var stream = new LiveStream
+            {
+                Description = dto.Description,
+                Thumbnail = dto.Thumbnail,
+                Name = dto.Name,
+                LiveUrl = "",
+                Id = Guid.NewGuid()
+            };
+
+            await context.LiveStreams.AddAsync(stream);
+            await context.SaveChangesAsync();
+
+            return RedirectToAction("Streaming", new { id = stream.Id });
+        }
+    }
+    [HttpGet]
+    public async Task<IActionResult> Streaming(Guid id)
     {
         using (var context = new AppDbContext())
         {
@@ -44,52 +68,69 @@ public class HomeController : Controller
             return View(stream);
         }
     }
-
-    public async Task<IActionResult> AddStream()
+    public async Task<IActionResult> Stream(Guid id)
     {
         using (var context = new AppDbContext())
         {
-            var streams = await context.LiveStreams.Include(c => c.Chats).ToListAsync();
-            context.LiveStreams.RemoveRange(streams);
+            var stream = await context.LiveStreams
+                .Include(c => c.Chats.OrderBy(c => c.WritedTime))
+                .FirstOrDefaultAsync(c => c.Id == id);
 
-            List<LiveStream> s = new List<LiveStream>();
+            if (stream is null)
+                return RedirectToAction("NotFound");
 
-            s.Add(new LiveStream
+            Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+            Response.Headers["Pragma"] = "no-cache";
+            Response.Headers["Expires"] = "0";
+
+            return View(stream);
+        }
+    }
+    public async Task<IActionResult> AddStream([FromForm] IFormFile file, string streamId)
+    {
+        if (file == null || file.Length <= 0)
+        {
+            return BadRequest(" Invalid File.");
+        }
+        var tempFilePath = Path.Combine(_env.WebRootPath + "/temps", file.FileName);
+        try
+        {
+            using (var stream = new FileStream(tempFilePath, FileMode.Create))
             {
-                Description = "Embark on a cosmic adventure as we explore the mysteries of the universe, from swirling galaxies to the outer reaches of our solar system. Get ready to have your mind blown by the wonders of space!",
-                Name = "Journey Through the Cosmos 🌌",
-                LiveUrl = "",
-                Thumbnail = "https://img.freepik.com/free-photo/creative-crystal-lens-ball-photography-lake-with-greenery-around-dawn_181624-29379.jpg"
-            });
+                await file.CopyToAsync(stream);
+            }
 
-            s.Add(new LiveStream
+            bool isNewStream = VideoService.InitializeStream(streamId, _env.WebRootPath + "/assets");
+
+            VideoService.ConvertSegmentToTs(streamId, tempFilePath, _env.WebRootPath + $"/assets/{streamId}");
+
+            if (isNewStream)
             {
-                Description = "Join us for a taste of global cuisines as we travel from street food in Bangkok to fine dining in Paris—all from your screen! Learn cooking tips, unique recipes, and cultural food stories that bring the world to your kitchen.",
-                Name = "Culinary World Tour: Flavors Across Continents 🍲",
-                LiveUrl = "",
-                Thumbnail = "https://t3.ftcdn.net/jpg/07/25/01/68/360_F_725016819_jOXJkOJZqRSEkdKhheFsLkxuYq59iwa0.jpg"
-            });
+                using (var context = new AppDbContext())
+                {
+                    var stream = await context.LiveStreams.FirstOrDefaultAsync(c => c.Id == Guid.Parse(streamId));
 
-            s.Add(new LiveStream
+                    if (stream is null)
+                        return RedirectToAction("NotFound");
+
+                    stream.LiveUrl = $"http://localhost:5290/assets/{streamId}/stream.m3u8";
+
+                    await context.SaveChangesAsync();
+                }
+            }
+
+            return Ok(new { message = "Segment başarıyla yüklendi ve işlendi." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Hata oluştu: {ex.Message}");
+        }
+        finally
+        {
+            if (System.IO.File.Exists(tempFilePath))
             {
-                Description = "Delve into the most intriguing mysteries, unsolved cases, and paranormal tales! From famous historical enigmas to lesser-known cases, join the discussion, share theories, and try to crack the mysteries of our world.",
-                Name = "Mystery Hour: Dive into Unsolved Cases 🕵️‍♀️",
-                LiveUrl = "",
-                Thumbnail = "https://img.freepik.com/free-photo/mythical-video-game-inspired-landscape-with-mountains_23-2150974373.jpg"
-            });
-
-            s.Add(new LiveStream
-            {
-                Description = "Relax and unwind as we dive into a fun, beginner-friendly painting session. Bring your own supplies, follow along, or just watch the art unfold! Perfect for artists, beginners, or anyone looking for a creative escape.",
-                Name = "The Creative Hour: Painting with a Twist 🎨",
-                LiveUrl = "",
-                Thumbnail = "https://www.shutterstock.com/image-photo/awesome-pic-natureza-600nw-2408133899.jpg"
-            });
-
-            await context.LiveStreams.AddRangeAsync(s);
-            await context.SaveChangesAsync();
-
-            return Ok("Added !");
+                System.IO.File.Delete(tempFilePath);
+            }
         }
     }
 

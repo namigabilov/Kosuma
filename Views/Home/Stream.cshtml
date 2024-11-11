@@ -10,12 +10,15 @@
 </script>
 
 <div>
-    <h1>@Model.Id</h1>
-    <h1>@Model.Name</h1>
-    <p>@Model.Description</p>
 
-    <img src="@Model.Thumbnail" alt="Stream Thumbnail" /> 
-
+    <div>
+        <video loop id='hls-example' class="video-js vjs-default-skin" width="400" height="300" controls>
+            <source type="application/x-mpegURL" src="@Model.LiveUrl">
+        </video>
+        <h1>@Model.Name</h1>
+        <h1>Url is : @Model.LiveUrl</h1>
+        <p>@Model.Description</p>
+    </div>
     <div
         style="border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-top: 20px; background-color: #f9f9f9;">
         <h2 style="text-align: center;">Chats</h2>
@@ -23,6 +26,10 @@
             @foreach (var chat in Model.Chats)
             {
                 <li style="padding: 8px; border-bottom: 1px solid #ccc;">
+                    @* @{
+                TimeSpan time = TimeSpan.FromSeconds(chat.WritedTime);
+                <span>@time.ToString(@"hh\:mm\:ss")</span>
+                } *@
                     <strong>@chat.WritedBy : </strong> @chat.Message
                 </li>
             }
@@ -36,6 +43,20 @@
 </div>
 
 
+<script src="https://vjs.zencdn.net/7.2.3/video.js"></script>
+
+<script>
+    var player = videojs('hls-example');
+    player.play();
+
+    setInterval(function () {
+        player.src({
+            type: "application/x-mpegURL",
+            src: "@Model.LiveUrl" + '?t=' + new Date().getTime()  // Her yüklemede yeni bir parametre ekliyoruz
+        });
+        player.play();
+    }, 80000);   
+</script>
 <script>
     var group = '@Model.Id';
     // Function to send a message to the SignalR group

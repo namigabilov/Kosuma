@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Kosuma.Services
 {
-    public class NameProvider
+    public static class NameProvider
     {
         public static List<string> LoadNames()
         {

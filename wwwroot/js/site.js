@@ -15,7 +15,7 @@ async function startConnection(group) {
 
             // Join the specified group after the connection is started
             await connection.invoke("JoinVideo", group);
-            
+
             setupReceiveMessageHandler();
         } catch (err) {
             console.error("SignalR Connection Error:", err.toString());
@@ -40,6 +40,7 @@ async function setupReceiveMessageHandler() {
         const messageList = document.getElementById("messagesList");
         if (messageList) {
             messageList.appendChild(li);
+            messageList.scrollTop = messageList.scrollHeight;
         }
     });
 }
