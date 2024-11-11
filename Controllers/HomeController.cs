@@ -113,7 +113,7 @@ public class HomeController : Controller
                     if (stream is null)
                         return RedirectToAction("NotFound");
 
-                    stream.LiveUrl = $"http://localhost:5290/assets/{streamId}/stream.m3u8";
+                    stream.LiveUrl = $"https://167.71.16.175/assets/{streamId}/stream.m3u8";
 
                     await context.SaveChangesAsync();
                 }

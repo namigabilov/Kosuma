@@ -7,47 +7,43 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 
-builder.Services.AddCors(c =>
+builder.Services.AddCors(options =>
 {
-    c.AddPolicy("MatcXCors", c =>
+    options.AddPolicy("MatcXCors", policy =>
     {
-        c.AllowAnyMethod()
-         .AllowAnyHeader()
-         .SetIsOriginAllowed(origin => true)
-         .AllowCredentials();
+        policy.AllowAnyMethod()
+              .AllowAnyHeader()
+              .SetIsOriginAllowed(origin => true)
+              .AllowCredentials();
     });
 });
 
-var app = builder.Build(); 
+var app = builder.Build();
 
-app.UseWhen(context => context.Request.Path.StartsWithSegments("/assets"), appBuilder =>
+// Use CORS globally for all requests
+app.UseCors("MatcXCors");
+
+// Serve static files from /assets with CORS policy and custom MIME types
+var provider = new FileExtensionContentTypeProvider();
+provider.Mappings[".m3u8"] = "application/x-mpegURL";
+provider.Mappings[".ts"] = "video/MP2T";
+
+app.UseStaticFiles(new StaticFileOptions
 {
-    appBuilder.UseCors("MatcXCors");
-
-    var provider = new FileExtensionContentTypeProvider();
-    provider.Mappings[".m3u8"] = "application/x-mpegURL";
-    provider.Mappings[".ts"] = "video/MP2T";
-
-    appBuilder.UseStaticFiles(new StaticFileOptions
-    {
-        ContentTypeProvider = provider,
-        FileProvider = new PhysicalFileProvider(Path.Combine(builder.Environment.WebRootPath, "assets")),
-        RequestPath = "/assets"
-    });
+    ContentTypeProvider = provider,
+    FileProvider = new PhysicalFileProvider(Path.Combine(builder.Environment.WebRootPath, "assets")),
+    RequestPath = "/assets"
 });
-
-app.UseStaticFiles();
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
-app.UseHttpsRedirection(); 
+
+app.UseHttpsRedirection();
 app.UseRouting();
 app.UseAuthorization();
-
-app.UseCors("MatcXCors");
 
 app.MapControllerRoute(
     name: "default",
