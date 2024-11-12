@@ -1,8 +1,10 @@
 @model Kosuma.Models.LiveStream;
-
+@{
+    string disable = Model.IsLiveNow ? "" : "disabled";
+    string placeholder = Model.IsLiveNow ? "Type your message here..." : "You can't send message right now ...";
+    string chatt = Model.IsLiveNow ? "Live Chat " : "Live Chat Clone";
+}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.0/signalr.min.js"></script>
-
-<script src="~/js/site.js"></script>
 
 <script>
     var group = '@Model.Id';
@@ -10,40 +12,77 @@
 </script>
 
 <div>
-
     <div>
         <video loop id='hls-example' class="video-js vjs-default-skin" width="400" height="300" controls>
             <source type="application/x-mpegURL" src="@Model.LiveUrl">
         </video>
         <h1>@Model.Name</h1>
-        <h1>Url is : @Model.LiveUrl</h1>
         <p>@Model.Description</p>
     </div>
     <div
         style="border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-top: 20px; background-color: #f9f9f9;">
-        <h2 style="text-align: center;">Chats</h2>
+        <h2 style="text-align: center;">@chatt</h2>
         <ul id="messagesList" style="max-height: 300px; overflow-y: auto; list-style-type: none; padding: 0;">
-            @foreach (var chat in Model.Chats)
+            @* @foreach (var chat in Model.Chats)
             {
-                <li style="padding: 8px; border-bottom: 1px solid #ccc;">
-                    @* @{
-                TimeSpan time = TimeSpan.FromSeconds(chat.WritedTime);
-                <span>@time.ToString(@"hh\:mm\:ss")</span>
-                } *@
-                    <strong>@chat.WritedBy : </strong> @chat.Message
-                </li>
+            <li style="padding: 8px; border-bottom: 1px solid #ccc;">
+            @{
+            TimeSpan time = TimeSpan.FromSeconds(chat.WritedTime);
+            <span>@time.ToString(@"hh\:mm\:ss")</span>
             }
+            <strong>@chat.WritedBy : </strong> @chat.Message
+            </li>
+            } *@
         </ul>
         <div style="margin-top: 16px; display: flex; gap: 8px;">
-            <input type="text" id="messageInput" placeholder="Type your message here..."
+            <input @disable type="text" id="messageInput" placeholder="@placeholder"
                 style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-            <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+            <button @disable class="btn btn-primary" onclick="sendMessage()">Send</button>
         </div>
     </div>
 </div>
 
+<script src="~/js/site.js"></script>
 
 <script src="https://vjs.zencdn.net/7.2.3/video.js"></script>
+
+<script>
+    // Parse and access the chats array from the $values property
+    const rawChats = JSON.parse('@Html.Raw(Json.Serialize(Model.Chats))');
+    const chats = rawChats.$values || []; // Use the $values array if it exists, otherwise an empty array
+
+    const videoElement = document.getElementById('hls-example');
+    const messagesList = document.getElementById('messagesList');
+    let lastIndex = 0;
+
+    function formatTime(seconds) {
+        const hrs = Math.floor(seconds / 3600).toString().padStart(2, '0');
+        const mins = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+        const secs = (seconds % 60).toString().padStart(2, '0');
+        return `${hrs}:${mins}:${secs}`;
+    }
+
+    function addMessageToList(chat) {
+        const li = document.createElement('li');
+        li.style.padding = '8px';
+        li.style.borderBottom = '1px solid #ccc';
+        li.innerHTML = `<span>${formatTime(chat.writedTime)}</span> <strong>${chat.writedBy}:</strong> ${chat.message}`;
+        messagesList.appendChild(li);
+        messagesList.scrollTop = messagesList.scrollHeight;
+    }
+
+    videoElement.addEventListener('timeupdate', () => {
+        const currentTime = Math.floor(videoElement.currentTime);
+
+        while (lastIndex < chats.length && chats[lastIndex].writedTime <= currentTime) {
+            const chat = chats[lastIndex]; 
+            addMessageToList(chat);
+            lastIndex++;
+        }
+    });
+
+</script>
+ 
 
 <script>
     var player = videojs('hls-example');
@@ -52,22 +91,25 @@
     setInterval(function () {
         player.src({
             type: "application/x-mpegURL",
-            src: "@Model.LiveUrl" + '?t=' + new Date().getTime()  // Her yüklemede yeni bir parametre ekliyoruz
+            src: "@Model.LiveUrl" + '?t=' + new Date().getTime()
         });
         player.play();
-    }, 80000);   
-</script>
-<script>
+    }, 80000);
+
+    let second = 0;
+
+    setInterval(function () {
+        second++;
+    }, 1000)
     var group = '@Model.Id';
-    // Function to send a message to the SignalR group
     function sendMessage() {
+
         const message = document.getElementById("messageInput").value;
         if (message.trim() === "") {
             alert("Please enter a message before sending.");
             return;
         }
-
-        sendMessageToGroup(message, group);
+        sendMessageToGroup(message, group, second);
 
         document.getElementById("messageInput").value = "";
     }

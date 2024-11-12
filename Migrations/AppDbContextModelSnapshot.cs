@@ -61,6 +61,9 @@ namespace Kosuma.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsLiveNow")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("LiveUrl")
                         .IsRequired()
                         .HasColumnType("text");

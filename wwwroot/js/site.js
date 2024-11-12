@@ -46,11 +46,11 @@ async function setupReceiveMessageHandler() {
 }
 
 
-async function sendMessageToGroup(message, group) {
+async function sendMessageToGroup(message, group,second) {
     const connectionInstance = await startConnection(group);
     const data = {
         Message: message,
-        Second: 15,
+        Second: second,
         StreamId: group
     };
     return connectionInstance.invoke("SendMessage", data)

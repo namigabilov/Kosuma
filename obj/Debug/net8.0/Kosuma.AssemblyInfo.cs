@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Kosuma")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2fbda01a164c35eef36beb09fc4518cb38fd4dbe")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c3568483a042b37158b4c2316e0a18741b7a8f30")]
 [assembly: System.Reflection.AssemblyProductAttribute("Kosuma")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Kosuma")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -6,16 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kosuma.Hubs
-{
-    public struct VideoData
-        {
-            public int Index { get; }
-            public string Part { get; }
-
-
-            [JsonConstructor]
-            public VideoData(int index, string part) => (Index, Part) = (index, part);
-        }
+{ 
     public class Data
     {
         public string Message { get; set; }

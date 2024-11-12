@@ -20,13 +20,28 @@ public class HomeController : Controller
     {
         using (var context = new AppDbContext())
         {
-            var streams = await context.LiveStreams.ToListAsync();
+            var streams = await context.LiveStreams.Where(c => !string.IsNullOrEmpty(c.LiveUrl)).ToListAsync();
 
             ViewData["Streams"] = streams;
 
             return View();
         }
     }
+
+    public async Task<IActionResult> DeleteStreams()
+    {
+        using (var context = new AppDbContext())
+        {
+            var streams = await context.LiveStreams.Include(c => c.Chats).ToListAsync();
+
+            context.LiveStreams.RemoveRange(streams);
+
+            await context.SaveChangesAsync();
+
+            return Ok();
+        }
+    }
+
     [HttpGet]
     public IActionResult CreateStream()
     {
@@ -44,12 +59,11 @@ public class HomeController : Controller
                 Thumbnail = dto.Thumbnail,
                 Name = dto.Name,
                 LiveUrl = "",
+                IsLiveNow = true,
                 Id = Guid.NewGuid()
             };
-
             await context.LiveStreams.AddAsync(stream);
             await context.SaveChangesAsync();
-
             return RedirectToAction("Streaming", new { id = stream.Id });
         }
     }
@@ -103,7 +117,6 @@ public class HomeController : Controller
             bool isNewStream = VideoService.InitializeStream(streamId, _env.WebRootPath + "/assets");
 
             VideoService.ConvertSegmentToTs(streamId, tempFilePath, _env.WebRootPath + $"/assets/{streamId}");
-
             if (isNewStream)
             {
                 using (var context = new AppDbContext())
@@ -112,9 +125,7 @@ public class HomeController : Controller
 
                     if (stream is null)
                         return RedirectToAction("NotFound");
-
-                    stream.LiveUrl = $"https://167.71.16.175/assets/{streamId}/stream.m3u8";
-
+                    stream.LiveUrl = $"http://localhost:5290/assets/{streamId}/stream.m3u8";
                     await context.SaveChangesAsync();
                 }
             }
@@ -137,6 +148,26 @@ public class HomeController : Controller
     public async Task<IActionResult> NotFound()
     {
         return View();
+    }
+
+    public async Task<IActionResult> EndStream(string streamId)
+    {
+        using (var context = new AppDbContext())
+        {
+            var stream = await context.LiveStreams.FirstOrDefaultAsync(c => c.Id == Guid.Parse(streamId));
+            if (stream is null)
+                return RedirectToAction("NotFound");
+
+            stream.IsLiveNow = false;
+ 
+
+            VideoService.AddEndlistTag(Path.Combine(_env.WebRootPath, "assets", streamId, "stream.m3u8"));
+ 
+
+            await context.SaveChangesAsync();
+
+            return RedirectToAction("Index");
+        }
     }
 
     public async Task<IActionResult> Privacy()

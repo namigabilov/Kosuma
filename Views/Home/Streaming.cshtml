@@ -2,64 +2,151 @@
     ViewData["Title"] = "Stream Time";
 }
 @model LiveStream
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.0/signalr.min.js"></script>
+<h2>Live</h2>
 
-<h2>Live </h2>
+<script src="~/js/site.js"></script>
 
-<video id="cameraFeed" autoplay playsinline style="width: 100%; max-width: 600px; border: 2px solid #333;"></video>
+<script>
+    var group = '@Model.Id';
+    startConnection(group);
+
+    function endStream() {
+        fetch(`/Home/EndStream?streamId=${group}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => {
+                if (response.ok) {
+                    alert('Stream ended successfully.');
+                    window.location.href = "/Home";
+                } else {
+                    alert('Failed to end stream.');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    }
+</script>
+
+<div>
+    <div>
+        <video id="cameraFeed" autoplay playsinline muted
+            style="width: 100%; max-width: 600px; border: 2px solid #333;"></video>
+        <h1>@Model.Name</h1>
+        <button class="btn btn-danger" onclick="endStream()" style="margin-top: 20px;">End Stream</button>
+        <button class="btn btn-primary" onclick="startCamera()" style="margin-top: 20px;">Share Camera</button>
+        <button class="btn btn-secondary" onclick="startScreen()" style="margin-top: 20px;">Share Screen</button>
+        <p>@Model.Description</p>
+    </div>
+    <div
+        style="border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-top: 20px; background-color: #f9f9f9;">
+        <h2 style="text-align: center;">Chats</h2>
+        <ul id="messagesList" style="max-height: 300px; overflow-y: auto; list-style-type: none; padding: 0;">
+            @foreach (var chat in Model.Chats)
+            {
+                <li style="padding: 8px; border-bottom: 1px solid #ccc;">
+                    @{
+                        TimeSpan time = TimeSpan.FromSeconds(chat.WritedTime);
+                        <span>@time.ToString(@"hh\:mm\:ss")</span>
+                    }
+                    <strong>@chat.WritedBy : </strong> @chat.Message
+                </li>
+            }
+        </ul>
+        <div style="margin-top: 16px; display: flex; gap: 8px;">
+            <input type="text" id="messageInput" placeholder="Type your message here..."
+                style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+</div>
 
 <script>
     let seconds = 0;
+    let mediaRecorder;
+    let recordingStream;
+
     async function startCamera() {
+        if (recordingStream) {
+            recordingStream.getTracks().forEach(track => track.stop());
+        }
         try {
-            const videoElement = document.getElementById('cameraFeed');
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            videoElement.srcObject = stream;
-
-            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-
-            mediaRecorder.ondataavailable = async (event) => {
-                if (event.data.size > 0) {
-                    const uniqueFileName = `segment_${seconds}.webm`;
-                    const formData = new FormData();
-                    formData.append('file', event.data, uniqueFileName);
-                    formData.append('streamId', '@Model.Id');
-
-                    try {
-                        const response = await fetch('/Home/AddStream', {
-                            method: 'POST',
-                            body: formData,
-                        });
-
-                        if (response.ok) {
-                            console.log('Video segmenti başarıyla yüklendi.');
-                            seconds += 10;
-                        } else {
-                            console.error('Video segmentini yüklerken hata oluştu.');
-                        }
-                    } catch (error) {
-                        console.error('Video segmentini yüklerken hata oluştu:', error);
-                    }
-                }
-            };
-
-            function recordSegment() {
-                mediaRecorder.start();
-                setTimeout(() => {
-                    mediaRecorder.stop();
-                }, 10000); // 10 saniyelik segmentler kaydediyoruz
-            }
-
-            recordSegment();
-
-            mediaRecorder.onstop = () => {
-                recordSegment(); // Her durduğunda tekrar başlat
-            };
-
+            recordingStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            startRecording(recordingStream);
         } catch (error) {
-            console.error("Kamera erişimi reddedildi veya hata oluştu:", error);
+            console.error("Error accessing camera:", error);
         }
     }
 
-    window.onload = startCamera;
+    async function startScreen() {
+        if (recordingStream) {
+            recordingStream.getTracks().forEach(track => track.stop());
+        }
+        try {
+            // Request both video and audio for screen sharing
+            recordingStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
 
+            // Check if the stream has an audio track
+            const hasAudio = recordingStream.getAudioTracks().length > 0;
+            console.log("Audio track available:", hasAudio);
+
+            startRecording(recordingStream);
+        } catch (error) {
+            console.error("Error accessing screen:", error);
+        }
+    }
+    let second = 0;
+
+    setInterval(function () {
+        second++;
+    }, 1000)
+    var group = '@Model.Id';
+    function sendMessage() {
+
+        const message = document.getElementById("messageInput").value;
+        if (message.trim() === "") {
+            alert("Please enter a message before sending.");
+            return;
+        }
+        sendMessageToGroup(message, group, second);
+
+        document.getElementById("messageInput").value = "";
+    }
+
+    function startRecording(stream) {
+        const videoElement = document.getElementById('cameraFeed');
+        videoElement.srcObject = stream;
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
+        mediaRecorder.ondataavailable = async (event) => {
+            if (event.data.size > 0) {
+                const uniqueFileName = `segment_${seconds}.webm`;
+                const formData = new FormData();
+                formData.append('file', event.data, uniqueFileName);
+                formData.append('streamId', '@Model.Id');
+                try {
+                    const response = await fetch('/Home/AddStream', {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    if (response.ok) {
+                        console.log('Video segment uploaded successfully.');
+                        seconds += 10;
+                    } else {
+                        console.error('Error uploading video segment.');
+                    }
+                } catch (error) {
+                    console.error('Error uploading video segment:', error);
+                }
+            }
+        };
+
+        mediaRecorder.start();
+        setInterval(() => {
+            mediaRecorder.stop();
+            mediaRecorder.start();
+        }, 10000); // Records 3-second segments
+    }
 </script>

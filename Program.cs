@@ -1,50 +1,53 @@
+using System.Text.Json.Serialization;
 using Kosuma.Hubs;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
+    });
 builder.Services.AddSignalR();
 
-builder.Services.AddCors(options =>
+builder.Services.AddCors(c =>
 {
-    options.AddPolicy("MatcXCors", policy =>
+    c.AddPolicy("MatcXCors", c =>
     {
-        policy.AllowAnyMethod()
-              .AllowAnyHeader()
-              .SetIsOriginAllowed(origin => true)
-              .AllowCredentials();
+        c.AllowAnyMethod()
+         .AllowAnyHeader()
+         .SetIsOriginAllowed(origin => true)
+         .AllowCredentials();
     });
 });
-
 var app = builder.Build();
-
-// Use CORS globally for all requests
-app.UseCors("MatcXCors");
-
-// Serve static files from /assets with CORS policy and custom MIME types
-var provider = new FileExtensionContentTypeProvider();
-provider.Mappings[".m3u8"] = "application/x-mpegURL";
-provider.Mappings[".ts"] = "video/MP2T";
-
-app.UseStaticFiles(new StaticFileOptions
+app.UseWhen(context => context.Request.Path.StartsWithSegments("/assets"), appBuilder =>
 {
-    ContentTypeProvider = provider,
-    FileProvider = new PhysicalFileProvider(Path.Combine(builder.Environment.WebRootPath, "assets")),
-    RequestPath = "/assets"
+    appBuilder.UseCors("MatcXCors");
+    var provider = new FileExtensionContentTypeProvider();
+    provider.Mappings[".m3u8"] = "application/x-mpegURL";
+    provider.Mappings[".ts"] = "video/MP2T";
+    appBuilder.UseStaticFiles(new StaticFileOptions
+    {
+        ContentTypeProvider = provider,
+        FileProvider = new PhysicalFileProvider(Path.Combine(builder.Environment.WebRootPath, "assets")),
+        RequestPath = "/assets"
+    });
 });
+app.UseStaticFiles();
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
-
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseAuthorization();
 
+app.UseCors("MatcXCors");
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
